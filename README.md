@@ -72,4 +72,4 @@ python chatMJFWbot.py
 
 ---
 
-👮 Created with care by Ivan. Let's keep Telegram clean together!
+👮 Created with care by Ivan Mudriakov. Let's keep Telegram clean together!
