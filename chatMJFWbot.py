@@ -8,11 +8,9 @@ import json
 from pymysql.cursors import DictCursor
 from dotenv import load_dotenv
 
-# Загрузка токена из файла all.env
 load_dotenv("all.env")
 TOKEN = os.getenv("TELEGRAM_API_TOKEN")
 
-# Настройки подключения к базе данных
 DB_CONFIG = {
     "host": "localhost",
     "user": "root",
@@ -22,7 +20,6 @@ DB_CONFIG = {
     "cursorclass": DictCursor
 }
 
-# Логирование
 logging.basicConfig(
     filename="bot.log",
     level=logging.INFO,
@@ -30,11 +27,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Загрузка списка запрещённых слов
 with open("banned_words.json", "r", encoding="utf-8") as file:
     BANNED_WORDS = json.load(file)
 
-# Создание таблиц, если их нет
 def initialize_database():
     connection = pymysql.connect(**DB_CONFIG)
     with connection.cursor() as cursor:
@@ -49,8 +44,6 @@ def initialize_database():
         connection.commit()
     connection.close()
 
-# Получение настроек чата
-
 def get_chat_settings(chat_id):
     connection = pymysql.connect(**DB_CONFIG)
     with connection.cursor() as cursor:
@@ -58,8 +51,6 @@ def get_chat_settings(chat_id):
         settings = cursor.fetchone()
     connection.close()
     return settings
-
-# Обновление или создание настроек чата
 
 def update_chat_settings(chat_id, language):
     connection = pymysql.connect(**DB_CONFIG)
@@ -76,7 +67,6 @@ def update_chat_settings(chat_id, language):
         connection.commit()
     connection.close()
 
-# Локализация сообщений
 MESSAGES = {
     "start": {
         "en": "Hello! I am a moderation bot. I am here to keep this chat clean.",
@@ -96,12 +86,8 @@ MESSAGES = {
     }
 }
 
-# Определение языка пользователя
-
 def get_user_language(update: Update):
     return update.effective_user.language_code[:2] if update.effective_user.language_code else "en"
-
-# Команда /start
 
 async def start(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
@@ -110,10 +96,7 @@ async def start(update: Update, context: CallbackContext):
     message = MESSAGES["start"].get(lang, MESSAGES["start"]["en"])
     await update.message.reply_text(message)
 
-# Функция для фильтрации сообщений
-
 async def filter_messages(update: Update, context: CallbackContext):
-    # Проверка, отправлено ли сообщение ботом
     if update.message.from_user.is_bot:
         logger.info("Message ignored: sent by another bot.")
         return
@@ -125,7 +108,6 @@ async def filter_messages(update: Update, context: CallbackContext):
 
     message = update.message.text.lower()
 
-    # Логирование перед проверкой сообщения
     logger.info(f"Checking message: {message} for banned words: {banned_words}")
 
     for word in banned_words:
@@ -136,8 +118,6 @@ async def filter_messages(update: Update, context: CallbackContext):
                 await update.message.reply_text(warning.format(user=update.message.from_user.first_name))
             except Exception as e:
                 logger.error(f"Failed to delete message: {e}")
-
-# Функция для временного бана
 
 async def temp_ban(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
@@ -159,22 +139,12 @@ async def temp_ban(update: Update, context: CallbackContext):
             error_message = MESSAGES["temp_ban_error"].get(lang, MESSAGES["temp_ban_error"]["en"])
             await update.message.reply_text(error_message.format(error=e))
 
-# Основной код
-
 if __name__ == "__main__":
     import asyncio
-
     initialize_database()
-
     application = Application.builder().token(TOKEN).build()
-
-    # Обработчики команд
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("temp_ban", temp_ban))
-
-    # Обработчик сообщений
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, filter_messages))
-
-    # Запуск бота
     loop = asyncio.get_event_loop()
     loop.run_until_complete(application.run_polling())
